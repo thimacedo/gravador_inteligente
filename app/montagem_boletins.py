@@ -24,6 +24,15 @@ from pydub import AudioSegment
 
 logger = logging.getLogger(__name__)
 
+# Caminho base do workspace (DIVISOR)
+WORKSPACE_DIR = os.environ.get(
+    "DIVISOR_WORKSPACE",
+    "E:/02_Projetos_Trabalho/Projetos_Ativos/DIVISOR"
+)
+
+# Caminho padrão dos assets de vinhetas (relativo ao workspace)
+ASSETS_BOLETIM_DIR = os.path.join(WORKSPACE_DIR, "assets", "vinhetas", "boletim")
+
 
 # =============================================================================
 # Configuração
@@ -33,9 +42,9 @@ logger = logging.getLogger(__name__)
 class AssetsConfig:
     """Caminhos dos assets de vinhetas."""
     
-    abertura: str = "E:/02_Projetos_Trabalho/Projetos_Ativos/DIVISOR/assets/vinhetas/boletim/VHT_ABERTURA_BOLETIM.mp3"
-    passagem: str = "E:/02_Projetos_Trabalho/Projetos_Ativos/DIVISOR/assets/vinhetas/boletim/VHT_PASSAGEM_BOLETIM.mp3"
-    encerramento: str = "E:/02_Projetos_Trabalho/Projetos_Ativos/DIVISOR/assets/vinhetas/boletim/VHT_ENCERRAMENTO_BOLETIM.mp3"
+    abertura: str = field(default=os.path.join(ASSETS_BOLETIM_DIR, "VHT_ABERTURA_BOLETIM.mp3"))
+    passagem: str = field(default=os.path.join(ASSETS_BOLETIM_DIR, "VHT_PASSAGEM_BOLETIM.mp3"))
+    encerramento: str = field(default=os.path.join(ASSETS_BOLETIM_DIR, "VHT_ENCERRAMENTO_BOLETIM.mp3"))
     
     def validate(self) -> list[str]:
         """Verifica se todos os assets existem. Retorna lista de erros."""

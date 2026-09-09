@@ -168,6 +168,113 @@ def save_numpy_to_audio(audio: np.ndarray, path: str | Path, sample_rate: int = 
 
 
 # =============================================================================
+# Etapa 0: Detecção e Correção de Canal Morto
+# =============================================================================
+
+def detectar_canal_morto(path: str | Path, threshold_db: float = 30.0) -> dict:
+    """
+    Detecta se o áudio stereo tem áudio apenas em um canal.
+    
+    Returns:
+        dict com:
+        - is_stereo: bool
+        - is_asymmetric: bool
+        - left_db: float
+        - right_db: float
+        - diff_db: float
+        - active_channel: str ("left", "right", "both")
+    """
+    path = str(path)
+    
+    # Verificar número de canais
+    cmd_info = ['ffprobe', '-v', 'quiet', '-select_streams', 'a:0', 
+                '-show_entries', 'stream=channels', '-of', 'csv=p=0', path]
+    r = subprocess.run(cmd_info, capture_output=True, text=True)
+    channels = int(r.stdout.strip()) if r.stdout.strip().isdigit() else 1
+    
+    if channels < 2:
+        return {
+            "is_stereo": False,
+            "is_asymmetric": False,
+            "left_db": 0,
+            "right_db": 0,
+            "diff_db": 0,
+            "active_channel": "mono",
+        }
+    
+    # Medir volume de cada canal
+    import re
+    
+    cmd_l = ['ffmpeg', '-i', path, '-af', 'pan=mono|c0=FL,volumedetect', '-f', 'null', '-']
+    r_l = subprocess.run(cmd_l, capture_output=True, text=True)
+    
+    cmd_r = ['ffmpeg', '-i', path, '-af', 'pan=mono|c0=FR,volumedetect', '-f', 'null', '-']
+    r_r = subprocess.run(cmd_r, capture_output=True, text=True)
+    
+    l_match = re.search(r'mean_volume: ([-\d.]+) dB', r_l.stderr)
+    r_match = re.search(r'mean_volume: ([-\d.]+) dB', r_r.stderr)
+    
+    left_db = float(l_match.group(1)) if l_match else -99.0
+    right_db = float(r_match.group(1)) if r_match else -99.0
+    
+    diff = abs(left_db - right_db)
+    
+    if diff > threshold_db and left_db > right_db:
+        active = "left"
+    elif diff > threshold_db and right_db > left_db:
+        active = "right"
+    else:
+        active = "both"
+    
+    return {
+        "is_stereo": True,
+        "is_asymmetric": diff > threshold_db,
+        "left_db": left_db,
+        "right_db": right_db,
+        "diff_db": diff,
+        "active_channel": active,
+    }
+
+
+def corrigir_canal_morto(input_path: str | Path, output_path: str | Path) -> dict:
+    """
+    Se o áudio é stereo assimétrico (áudio só em um canal),
+    converte para mono usando apenas o canal ativo.
+    
+    Returns:
+        dict com status e info
+    """
+    info = detectar_canal_morto(input_path)
+    
+    if not info["is_asymmetric"]:
+        return {"status": "ok", "action": "none", "info": info}
+    
+    channel = info["active_channel"]
+    logger.info(f"Canal morto detectado! Audio apenas no canal {channel} "
+                f"(diff={info['diff_db']:.1f}dB). Convertendo para mono...")
+    
+    # Extrair apenas o canal ativo e salvar como mono
+    if channel == "left":
+        pan_filter = "pan=mono|c0=FL"
+    else:
+        pan_filter = "pan=mono|c0=FR"
+    
+    cmd = [
+        "ffmpeg", "-y", "-i", str(input_path),
+        "-af", pan_filter,
+        "-ar", "44100",
+        str(output_path)
+    ]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    
+    if r.returncode != 0:
+        raise RuntimeError(f"Falha ao corrigir canal: {r.stderr}")
+    
+    logger.info(f"  Convertido para mono (canal {channel})")
+    return {"status": "ok", "action": "converted_to_mono", "channel": channel, "info": info}
+
+
+# =============================================================================
 # Etapa 1: Normalização de Volume
 # =============================================================================
 
@@ -503,6 +610,7 @@ def process(
     Pipeline completo de tratamento de áudio.
     
     Executa as etapas na ordem correta:
+    0. Correção de canal morto (stereo assimétrico → mono)
     1. Redução de ruído (antes da normalização para não amplificar ruído)
     2. Redução de respiração
     3. Remoção de silêncios longos (se habilitado)
@@ -539,6 +647,17 @@ def process(
     temp_files = []
     
     try:
+        # Etapa 0: Correção de canal morto (stereo assimétrico)
+        canal_info = detectar_canal_morto(current_file)
+        if canal_info["is_asymmetric"]:
+            canal_output = temp_dir / f"{input_path.stem}_canal_fix.mp3"
+            temp_files.append(canal_output)
+            
+            r = corrigir_canal_morto(current_file, canal_output)
+            results["etapas"].append({"nome": "correcao_canal", **r})
+            current_file = str(canal_output)
+            logger.info(f"Correção de canal aplicada: {r.get('channel', '?')}")
+        
         # Etapa 1: Redução de ruído
         if cfg.reduce_noise:
             noise_output = temp_dir / f"{input_path.stem}_denoised.mp3"
