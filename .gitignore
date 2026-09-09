@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Projeto
+temp_processing/
+output_boletins/
+boletins_segmentados/
+logs_edicao/
+output_segmentacao.txt
+segmentacao.log
+segmentar_com_transcricao_anterior.py
+run_segment.py
+progresso.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
