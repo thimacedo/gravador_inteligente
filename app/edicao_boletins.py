@@ -258,7 +258,7 @@ def detectar_repeticoes(
             # Verifica limite temporal
             intervalo_seg = (frase_atual["inicio"] - frase_passada["fim"]) / 1000
             if intervalo_seg > tempo_max_retrocesso_seg:
-                continue
+                break
             
             texto_passado = normalizar_texto(frase_passada["texto"])
             
