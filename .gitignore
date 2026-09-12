@@ -18,6 +18,13 @@ segmentar_com_transcricao_anterior.py
 run_segment.py
 progresso.txt
 
+# Legado de segmentação (removido em 2026-09-11 — não versionar de volta)
+segmentar_boletins.py
+
+# Artefatos de teste / imagem (remover se útil no futuro)
+*.png
+test_audio.wav
+
 # IDE
 .vscode/
 .idea/

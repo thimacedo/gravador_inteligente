@@ -8,12 +8,11 @@ version = "0.1.0"
 description = "Pipeline de processamento de áudio para TJRN radio - geração automática de boletins diários"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.100.0",
-    "uvicorn[standard]>=0.23.0",
+    "openai-whisper>=20231117",
     "pydub>=0.25.1",
-    "whisper-timestamped>=1.0.0",
     "numpy>=1.24.0",
     "torch>=2.0.0",
+    "regex>=2024.0.0",
 ]
 
 [project.optional-dependencies]
