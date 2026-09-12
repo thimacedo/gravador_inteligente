@@ -40,14 +40,15 @@
 - [x] Limpeza de código legado (3 scripts de segmentação removidos)
 - [x] `pyproject.toml` corrigido (`whisper-timestamped` → `openai-whisper`, FastAPI removido)
 - [x] CI: `.github/workflows/ci.yml` (ruff + black + pytest)
-- [x] `assets/` com placeholders de vinheta para teste (substituir por reais)
+- [x] `assets/` com vinhetas reais de TJRN copiadas de `E:/02_Projetos_Trabalho/Projetos_Ativos/DIVISOR/assets/vinhetas/boletim/`
+- [x] `scripts/validar_pipeline.py`: validador automático com relatório JSON de qualidade
 
 ## Próximos (priorizados)
 
 ### 🔴 Alto
 
-1. **Validar pipeline com áudio de produção** — rodar o pipeline completo com áudio de boletim real (com marcadores B1–B5) e verificar se segmentação, edição, montagem e auditoria funcionam end-to-end com conteúdo real.
-2. **Substituir assets de vinheta placeholder** — os MP3 em `assets/vinhetas/boletim/` são silêncio gerado por ffmpeg. Substituir por vinhetas reais de TJRN radio antes de usar em produção.
+1. **Validar pipeline com áudio de produção** — rodar o pipeline completo com áudio de boletim real (com marcadores B1–B5) e verificar se segmentação, edição, montagem e auditoria funcionam end-to-end com conteúdo real. (Parcialmente validado com `test_audio.wav` — falta áudio de produção com B1-B5 para testar segmentação.)
+2. ~~Substituir assets de vinheta placeholder~~ — **FEITO**: vinhetas reais copiadas de `E:/02_Projetos_Trabalho/Projetos_Ativos/DIVISOR/assets/vinhetas/boletim/`.
 3. **Testes com áudio real de vinheta** — os testes de montagem usam mocks de AudioSegment. Adicionar testes com áudio real de vinheta quando disponível para validar crossfade e estrutura.
 
 ### 🟡 Médio
