@@ -433,5 +433,60 @@ def main_cli():
         print(f"Erro: {resultado.get('erro', 'Erro desconhecido')}")
 
 
+def auditar_boletim(
+    caminho_audio: str | Path,
+    limiar: float = 0.5,
+) -> dict:
+    """
+    Auditoria de qualidade pós-montagem.
+    Verifica existência, LUFS e duração do áudio montado.
+    """
+    from pathlib import Path
+
+    caminho = Path(caminho_audio)
+    problemas: list[str] = []
+    medidas: dict = {}
+
+    if not caminho.exists():
+        return {
+            "status": "aviso",
+            "problemas": [f"Arquivo não encontrado: {caminho}"],
+            "medidas": {},
+        }
+
+    try:
+        from app.tratamento_audio import measure_lufs
+
+        lufs_result = measure_lufs(caminho)
+        input_i = lufs_result.get("input_i", 0)
+        medidas["lufs_integrated"] = input_i
+        medidas["lufs_true_peak"] = lufs_result.get("input_tp", 0)
+        medidas["lufs_lra"] = lufs_result.get("input_lra", 0)
+
+        target_lufs = -16.0
+        diferenca = abs(input_i - target_lufs)
+        if diferenca > limiar:
+            problemas.append(
+                f"Loudness fora: {input_i:.1f} LUFS (target {target_lufs} +/- {limiar})"
+            )
+    except Exception as e:
+        problemas.append(f"Falha ao medir LUFS: {e}")
+
+    try:
+        from app.tratamento_audio import get_audio_info
+
+        info = get_audio_info(caminho)
+        duracao = info.get("duration", 0)
+        medidas["duracao_s"] = duracao
+        medidas["tamanho_mb"] = round(info.get("size_bytes", 0) / (1024 * 1024), 2)
+        if duracao <= 0:
+            problemas.append("Duração inválida")
+    except Exception as e:
+        problemas.append(f"Falha ao obter info: {e}")
+
+    status = "aviso" if problemas else "ok"
+    return {"status": status, "problemas": problemas, "medidas": medidas}
+
+
 if __name__ == "__main__":
     main_cli()

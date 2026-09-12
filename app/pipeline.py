@@ -437,7 +437,7 @@ def main_cli():
         segmentar=not args.pular_segmentacao,
         num_boletins=args.num_boletins,
         tratar_audio=not args.pular_tratamento,
-        tratar_config=tratamento_config,
+        tratamento_config=tratamento_config,
         editar=not args.pular_edicao,
         edicao_config=edicao_config,
         montar=not args.pular_montagem,
