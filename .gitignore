@@ -21,9 +21,9 @@ progresso.txt
 # Legado de segmentação (removido em 2026-09-11 — não versionar de volta)
 segmentar_boletins.py
 
-# Artefatos de teste / imagem (remover se útil no futuro)
+# Artefatos de teste
+# test_audio.wav é mantido versionado como áudio de teste do projeto (426KB, mono 24kHz)
 *.png
-test_audio.wav
 
 # IDE
 .vscode/
