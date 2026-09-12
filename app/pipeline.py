@@ -60,6 +60,9 @@ class PipelineConfig:
     output_dir: str = "output_boletins"
     manter_intermediarios: bool = True  # Mantém arquivos de cada etapa
     verbose: bool = False
+    prefixo: str = ""  # Prefixo para distinguir sets (ex: "03_SET_", "08_SET_")
+    auditoria_auto: bool = True  # Rodar auditoria automática após montagem
+    limiar_auditoria: float = 0.5  # Threshold para flag de repetições na auditoria
 
 
 # =============================================================================
@@ -194,16 +197,14 @@ class PipelineBoletins:
                 logger.info(f"BOLETIM {i}/{len(arquivos_boletins)}: {boletim_path.name}")
                 logger.info(f"{'='*70}")
                 
-                boletim_nome = boletim_path.stem
+                boletim_nome = f"{self.config.prefixo}{boletim_path.stem}"
                 current_file = str(boletim_path)
                 
                 # --- ETAPA 2: Tratamento ---
                 if self.config.tratar_audio:
                     logger.info(f"\n--- Tratamento de áudio ---")
                     
-                    tratado_dir = base_dir / "02_tratados"
-                    tratado_dir.mkdir(exist_ok=True)
-                    tratado_path = tratado_dir / f"{boletim_nome}_tratado.mp3"
+                    tratado_path = base_dir / f"{boletim_nome}_tratado.mp3"
                     
                     try:
                         res_tratamento = processar_audio(
@@ -234,9 +235,7 @@ class PipelineBoletins:
                 if self.config.editar:
                     logger.info(f"\n--- Edição (remoção de erros) ---")
                     
-                    editado_dir = base_dir / "03_editados"
-                    editado_dir.mkdir(exist_ok=True)
-                    editado_path = editado_dir / f"{boletim_nome}_editado.mp3"
+                    editado_path = base_dir / f"{boletim_nome}_editado.mp3"
                     
                     try:
                         res_edicao = editar_boletim(
@@ -267,9 +266,7 @@ class PipelineBoletins:
                 if self.config.montar:
                     logger.info(f"\n--- Montagem com vinhetas ---")
                     
-                    montado_dir = base_dir / "04_montados"
-                    montado_dir.mkdir(exist_ok=True)
-                    montado_path = montado_dir / f"{boletim_nome}_FINAL.mp3"
+                    montado_path = base_dir / f"{boletim_nome}_FINAL.mp3"
                     
                     try:
                         res_montagem = montar_boletim(
@@ -297,7 +294,39 @@ class PipelineBoletins:
                         })
             
             # ================================================================
-            # Finalização
+            # ETAPA 5: Auditoria automática pós-montagem
+            # ================================================================
+            if self.config.auditoria_auto and resultado.boletins_gerados:
+                logger.info(f"\n{'='*70}")
+                logger.info("ETAPA 5: Auditoria de qualidade automática")
+                logger.info(f"{'='*70}")
+                
+                for boletim_path in resultado.boletins_gerados:
+                    boletim_nome = Path(boletim_path).stem
+                    logger.info(f"Auditoria: {boletim_nome}")
+                    
+                    try:
+                        from app.montagem_boletins import auditar_boletim
+                        res_auditoria = auditar_boletim(
+                            boletim_path,
+                            limiar=self.config.limiar_auditoria,
+                        )
+                        resultado.etapas.append({
+                            "nome": f"auditoria_{boletim_nome}",
+                            "status": "ok" if res_auditoria.get("status") == "ok" else "aviso",
+                            "arquivo": boletim_path,
+                            "detalhes": res_auditoria,
+                        })
+                        if res_auditoria.get("problemas"):
+                            for p in res_auditoria["problemas"]:
+                                logger.warning(f"  ⚠ {p}")
+                                resultado.erros.append(f"auditoria_{boletim_nome}: {p}")
+                        else:
+                            logger.info(f"  ✓ Sem problemas detectados")
+                    except Exception as e:
+                        logger.error(f"  ✗ Auditoria falhou: {e}")
+            # ================================================================
+            # Finalização e auditoria automática
             # ================================================================
             if resultado.erros:
                 resultado.status = "parcial" if resultado.boletins_gerados else "erro"
@@ -322,7 +351,7 @@ class PipelineBoletins:
                     logger.info(f"  ✓ {b}")
             logger.info(f"Log: {log_path}")
             logger.info(f"{'='*70}")
-            
+        
         except Exception as e:
             resultado.status = "erro"
             resultado.erros.append(str(e))
@@ -331,6 +360,7 @@ class PipelineBoletins:
             raise
         
         return resultado
+
 
 
 # =============================================================================
@@ -353,7 +383,7 @@ def main_cli():
     parser.add_argument("--modelo", default="tiny", help="Modelo Whisper")
     parser.add_argument("--lufs", type=float, default=-16.0, help="Target LUFS")
     parser.add_argument("--noise-strength", type=float, default=0.5, help="Redução de ruído (0-1)")
-    parser.add_argument("--limiar", type=float, default=0.65, help="Limiar de similaridade")
+    parser.add_argument("--limiar", type=float, default=0.5, help="Limiar de similaridade (0-1)")
     parser.add_argument("--assets-dir", help="Diretório dos assets")
     parser.add_argument("--manter-intermediarios", action="store_true", help="Mantém arquivos intermediários")
     parser.add_argument("-v", "--verbose", action="store_true", help="Modo verboso")
